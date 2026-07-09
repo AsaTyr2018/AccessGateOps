@@ -1,0 +1,34 @@
+# Build outputs
+/build/
+/dist/
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Runtime state and secrets
+/data/
+*.key
+*.pem
+*.secret
+*.env
+.env
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+Thumbs.db
+.DS_Store
+
+# Local editor/project metadata
+.idea/
+.vscode/
+
+# Generated archives
+*.tar
+*.zip
+*.gz

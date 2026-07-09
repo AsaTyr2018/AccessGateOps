@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: accessgate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: accessgate-data
+  namespace: accessgate
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accessgate
+  namespace: accessgate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accessgate
+  template:
+    metadata:
+      labels:
+        app: accessgate
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: server-b
+      containers:
+        - name: accessgate
+          image: localhost/accessgate:0.1.0
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ACCESSGATE_ADDR
+              value: ":8080"
+            - name: ACCESSGATE_DATA_DIR
+              value: /var/lib/accessgate
+            - name: ACCESSGATE_PUBLIC_URL
+              value: https://accessgate.example.com
+            - name: ACCESSGATE_TLS_MODE
+              value: disabled-local
+            - name: ACCESSGATE_BOOTSTRAP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: accessgate-bootstrap
+                  key: api-key
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/accessgate
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: accessgate-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accessgate
+  namespace: accessgate
+spec:
+  selector:
+    app: accessgate
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: accessgate
+  namespace: accessgate
+spec:
+  rules:
+    - host: accessgate.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: accessgate
+                port:
+                  name: http
